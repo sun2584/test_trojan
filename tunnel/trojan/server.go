@@ -20,6 +20,7 @@ import (
 )
 
 // InboundConn is a trojan inbound connection
+// 入站连接
 type InboundConn struct {
 	// WARNING: do not change the order of these fields.
 	// 64-bit fields that use `sync/atomic` package functions

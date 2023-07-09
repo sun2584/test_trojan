@@ -46,6 +46,7 @@ func (u *User) Close() error {
 	return nil
 }
 
+// 添加ip，如果ip限制小于等于0，直接添加，如果现有ip数小于ip最大值，不允许添加
 func (u *User) AddIP(ip string) bool {
 	if u.maxIPNum <= 0 {
 		return true
@@ -59,6 +60,7 @@ func (u *User) AddIP(ip string) bool {
 	}
 	u.ipTable.Store(ip, true)
 	atomic.AddInt32(&u.ipNum, 1)
+	// mysql.Authenticator.Updateip(u.ipNum, u.hash)
 	return true
 }
 
@@ -72,6 +74,8 @@ func (u *User) DelIP(ip string) bool {
 	}
 	u.ipTable.Delete(ip)
 	atomic.AddInt32(&u.ipNum, -1)
+
+	// Updateip(u.ipNum, u.hash)
 	return true
 }
 

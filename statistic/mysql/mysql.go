@@ -26,15 +26,19 @@ type Authenticator struct {
 	ctx            context.Context
 }
 
+// 读取上传下载速度，并写入数据库
 func (a *Authenticator) updater() {
 	for {
+
 		for _, user := range a.ListUsers() {
 			// swap upload and download for users
 			hash := user.Hash()
 			sent, recv := user.ResetTraffic()
 			ipcurrent := user.GetIP()
+			log.Info(" 发送:", sent)
+			log.Info("回复:", recv)
 
-			s, err := a.db.Exec("UPDATE `users` SET `upload`=`upload`+?, `download`=`download`+? 'ipcurrent'=? WHERE `password`=?;", recv, sent, ipcurrent, hash)
+			s, err := a.db.Exec("UPDATE `users` SET `upload`=`upload`+?, `download`=`download`+? ,`ipcurrent`=? WHERE `password`=?;", recv, sent, ipcurrent, hash)
 			if err != nil {
 				log.Error(common.NewError("failed to update data to user table").Base(err))
 				continue
@@ -113,4 +117,11 @@ func NewAuthenticator(ctx context.Context) (statistic.Authenticator, error) {
 
 func init() {
 	statistic.RegisterAuthenticatorCreator(Name, NewAuthenticator)
+}
+
+func (a *Authenticator) Updateip(ipcurrent int32, hash string) {
+	_, err := a.db.Exec("UPDATE `ipcurrent`=? WHERE `password`=?;", ipcurrent, hash)
+	if err != nil {
+		log.Error(common.NewError("failed to update data to user table").Base(err))
+	}
 }
