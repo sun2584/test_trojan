@@ -35,9 +35,6 @@ func (a *Authenticator) updater() {
 			hash := user.Hash()
 			sent, recv := user.ResetTraffic()
 			ipcurrent := user.GetIP()
-			log.Info(" 发送:", sent)
-			log.Info("回复:", recv)
-
 			s, err := a.db.Exec("UPDATE `users` SET `upload`=`upload`+?, `download`=`download`+? ,`ipcurrent`=? WHERE `password`=?;", recv, sent, ipcurrent, hash)
 			if err != nil {
 				log.Error(common.NewError("failed to update data to user table").Base(err))
@@ -46,6 +43,33 @@ func (a *Authenticator) updater() {
 			if r, err := s.RowsAffected(); err != nil {
 				if r == 0 {
 					a.DelUser(hash)
+				}
+			}
+
+			rows, err := a.db.Query("SELECT uploadlimit,downloadlimit,iplimit FROM users WHERE password=?", hash)
+			if err != nil || rows.Err() != nil {
+				log.Error(common.NewError("failed to pull data from the database").Base(err))
+				time.Sleep(a.updateDuration)
+				continue
+			}
+			for rows.Next() {
+				var uploadlimit, downloadlimit, iplimit int64
+				err := rows.Scan(&uploadlimit, &downloadlimit, &iplimit)
+				if err != nil {
+					log.Error(common.NewError("failed to obtain data from the query result").Base(err))
+					break
+				}
+				useriplimit := user.GetIPLimit()
+				log.Info("用户ip最大为:", useriplimit)
+
+				if user.GetIPLimit() == 0 {
+					user.SetIPLimit(int(iplimit))
+				}
+				downloadSpeedLimit, uploadSpeedLimit := user.GetSpeedLimit()
+				log.Info("用户上传速度限制:", uploadSpeedLimit)
+				log.Info("用户下载速度限制:", downloadSpeedLimit)
+				if downloadSpeedLimit == 0 && uploadSpeedLimit == 0 {
+					user.SetSpeedLimit(int(downloadlimit), int(uploadlimit))
 				}
 			}
 		}
@@ -117,11 +141,4 @@ func NewAuthenticator(ctx context.Context) (statistic.Authenticator, error) {
 
 func init() {
 	statistic.RegisterAuthenticatorCreator(Name, NewAuthenticator)
-}
-
-func (a *Authenticator) Updateip(ipcurrent int32, hash string) {
-	_, err := a.db.Exec("UPDATE `ipcurrent`=? WHERE `password`=?;", ipcurrent, hash)
-	if err != nil {
-		log.Error(common.NewError("failed to update data to user table").Base(err))
-	}
 }
