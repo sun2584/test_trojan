@@ -53,7 +53,7 @@ func (a *Authenticator) updater() {
 				continue
 			}
 			for rows.Next() {
-				var uploadlimit, downloadlimit, iplimit int64
+				var uploadlimit, downloadlimit, iplimit int
 				err := rows.Scan(&uploadlimit, &downloadlimit, &iplimit)
 				if err != nil {
 					log.Error(common.NewError("failed to obtain data from the query result").Base(err))
@@ -62,13 +62,13 @@ func (a *Authenticator) updater() {
 				useriplimit := user.GetIPLimit()
 				log.Info("用户ip最大为:", useriplimit)
 
-				if user.GetIPLimit() == 0 {
+				if user.GetIPLimit() != useriplimit {
 					user.SetIPLimit(int(iplimit))
 				}
 				downloadSpeedLimit, uploadSpeedLimit := user.GetSpeedLimit()
 				log.Info("用户上传速度限制:", uploadSpeedLimit)
 				log.Info("用户下载速度限制:", downloadSpeedLimit)
-				if downloadSpeedLimit == 0 && uploadSpeedLimit == 0 {
+				if downloadSpeedLimit != downloadlimit && uploadSpeedLimit != uploadlimit {
 					user.SetSpeedLimit(int(downloadlimit), int(uploadlimit))
 				}
 			}
